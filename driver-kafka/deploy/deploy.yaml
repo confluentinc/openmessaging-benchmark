@@ -51,7 +51,7 @@
       yum: pkg={{ item }} state=latest
       with_items:
           - wget
-          - java
+          - java-11
           - sysstat
           - vim
           - chrony

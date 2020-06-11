@@ -1,10 +1,11 @@
 provider "aws" {
   region  = "${var.region}"
-  version = "1.8"
+  version = "~> 2.7"
+  profile = "default"
 }
 
 provider "random" {
-  version = "1.1"
+  version = "2.1"
 }
 
 variable "public_key_path" {
@@ -42,7 +43,7 @@ variable "num_instances" {
 resource "aws_vpc" "benchmark_vpc" {
   cidr_block = "10.0.0.0/16"
 
-  tags {
+  tags = {
     Name = "Pulsar-Benchmark-VPC-${random_id.hash.hex}"
   }
 }
@@ -108,7 +109,7 @@ resource "aws_security_group" "benchmark_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     Name = "Benchmark-Security-Group-${random_id.hash.hex}"
   }
 }
@@ -126,7 +127,7 @@ resource "aws_instance" "zookeeper" {
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["zookeeper"]}"
 
-  tags {
+  tags = {
     Name = "zk-${count.index}"
   }
 }
@@ -139,7 +140,7 @@ resource "aws_instance" "pulsar" {
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["pulsar"]}"
 
-  tags {
+  tags = {
     Name = "pulsar-${count.index}"
   }
 }
@@ -152,7 +153,7 @@ resource "aws_instance" "client" {
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["client"]}"
 
-  tags {
+  tags = {
     Name = "pulsar-client-${count.index}"
   }
 }
@@ -165,7 +166,7 @@ resource "aws_instance" "prometheus" {
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["prometheus"]}"
 
-  tags {
+  tags = {
     Name = "prometheus-${count.index}"
   }
 }
