@@ -25,7 +25,7 @@ messageSize: 100
 payloadFile: "payload/payload-100b.data"
 subscriptionsPerTopic: 1
 consumerPerSubscription: 1
-producersPerTopic: 1
+producersPerTopic: 2
 
 # Discover max-sustainable rate
 producerRate: 0
