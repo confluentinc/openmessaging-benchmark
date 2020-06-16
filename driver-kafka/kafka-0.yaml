@@ -17,15 +17,23 @@
 # under the License.
 #
 
-name: 1 producer / 1 consumers on 1 topic
+name: Kafka
+driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
-topics: 1
-partitionsPerTopic: 16
-messageSize: 1024
-payloadFile: "payload/payload-1Kb.data"
-subscriptionsPerTopic: 1
-consumerPerSubscription: 1
-producersPerTopic: 2
-producerRate: 100000
-consumerBacklogSizeGB: 100
-testDurationMinutes: 5
+# Kafka client-specific configuration
+replicationFactor: 3
+
+topicConfig: |
+  min.insync.replicas=2
+
+commonConfig: |
+  bootstrap.servers=localhost:9092
+
+producerConfig: |
+  acks=0
+  linger.ms=1
+  batch.size=131072
+
+consumerConfig: |
+  auto.offset.reset=earliest
+  enable.auto.commit=false

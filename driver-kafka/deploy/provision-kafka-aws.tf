@@ -67,6 +67,7 @@ resource "aws_subnet" "benchmark_subnet" {
   vpc_id                  = "${aws_vpc.benchmark_vpc.id}"
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
+  availability_zone = "us-west-2a"
 }
 
 resource "aws_security_group" "benchmark_security_group" {
@@ -114,6 +115,7 @@ resource "aws_instance" "zookeeper" {
   subnet_id              = "${aws_subnet.benchmark_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["zookeeper"]}"
+  monitoring = true
 
   tags = {
     Name = "zk-${count.index}"
@@ -127,6 +129,7 @@ resource "aws_instance" "kafka" {
   subnet_id              = "${aws_subnet.benchmark_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["kafka"]}"
+  monitoring = true
 
   tags = {
     Name = "kafka-${count.index}"
@@ -140,6 +143,7 @@ resource "aws_instance" "client" {
   subnet_id              = "${aws_subnet.benchmark_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["client"]}"
+  monitoring = true
 
   tags = {
     Name = "kafka-client-${count.index}"

@@ -25,7 +25,7 @@ messageSize: 1024
 payloadFile: "payload/payload-1Kb.data"
 subscriptionsPerTopic: 1
 consumerPerSubscription: 1
-producersPerTopic: 2
+producersPerTopic: 1
 
 # Fix rate, to a very large unattainable value
 producerRate: 1000000000

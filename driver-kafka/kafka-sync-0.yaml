@@ -17,7 +17,8 @@
 # under the License.
 #
 
-
+# Kafka driver profile that is configuring to sync all
+# published messages to disk to achieve durability
 name: Kafka
 driverClass: io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver
 
@@ -26,12 +27,14 @@ replicationFactor: 3
 
 topicConfig: |
   min.insync.replicas=2
+  flush.messages=1
+  flush.ms=0
 
 commonConfig: |
   bootstrap.servers=localhost:9092
 
 producerConfig: |
-  acks=all
+  acks=0
   linger.ms=1
   batch.size=131072
 
