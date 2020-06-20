@@ -38,6 +38,33 @@ def create_quantile_chart(workload, title, y_label, time_series):
     chart.render_to_file('%s.svg' % workload)
 
 
+def create_multi_chart(svg_file_name, title, y_label_1, y_label_2, time_series):
+    chart = pygal.XY(dots_size=.3,
+                     legend_at_bottom=True,)
+    chart.title = title
+    chart.human_readable = True
+    chart.x_title = 'Time (seconds)'
+
+    ys_1 = []
+    ys_2 = []
+
+    for label_1, values_1, label_2, values_2 in time_series:
+        ys_1.append(values_1)
+        chart.add(label_1, [(10*x, y) for x, y in enumerate(values_1)])
+        chart.add(label_2, [(10*x, y)
+                            for x, y in enumerate(values_2)], secondary=True)
+
+    ys_1 = chain.from_iterable(ys_1)
+    ys_2 = chain.from_iterable(ys_2)
+    max_y_1 = float('-inf')  # Hack for starting w/ INT64_MIN
+    max_y_2 = max_y_1
+    for y in ys_1:
+        if max_y_1 < y:
+            max_y_1 = y
+    chart.range = (0, max_y_1 * 1.20)
+    chart.render_to_file('%s.svg' % svg_file_name)
+
+
 def create_chart(workload, title, y_label, time_series):
     chart = pygal.XY(dots_size=.3,
                      legend_at_bottom=True,)
@@ -72,23 +99,40 @@ if __name__ == "__main__":
                         help='Directory containing the results')
     parser.add_argument('--durability', dest='durability',
                         help='Either \'fsync\' or \'nofsync\'')
+    parser.add_argument('--files', nargs='+', dest='files', required=False, type=str,
+                        help='Explicitly specify result files to plot')
+    parser.add_argument('--series-labels', nargs='+', dest='labels', required=False,
+                        type=str, help='Labels for the series instead of file names on the plot')
     args = parser.parse_args()
 
-    file_name_template = f'{args.msg_size}-run-[0123456789]+-{args.durability}-{args.ack}-acks.json'
+    if args.labels != None and len(args.labels) != len(args.files):
+        sys.exit('Number of labels specified != Number of input files')
 
     aggregate = []
 
-    # Get list of directories
-    for (dirpath, dirnames, filenames) in walk(args.results_dir):
-        for file in filenames:
-            if re.match(file_name_template, file):
-                file_path = path.join(dirpath, file)
-                data = json.load(open(file_path))
+    if args.files is None:
+        file_name_template = f'{args.msg_size}-run-[0123456789]+-{args.durability}-{args.ack}-acks.json'
+
+        # Get list of directories
+        for (dirpath, dirnames, filenames) in walk(args.results_dir):
+            for file in filenames:
+                if re.match(file_name_template, file):
+                    file_path = path.join(dirpath, file)
+                    data = json.load(open(file_path))
+                    data['file'] = file
+                    aggregate.append(data)
+    else:
+        for idx, file in enumerate(args.files):
+            data = json.load(open(file))
+            if args.labels != None:
+                data['file'] = args.labels[idx]
+            else:
                 data['file'] = file
-                aggregate.append(data)
+            aggregate.append(data)
 
     stats_pub_rate = []
     stats_con_rate = []
+    stats_backlog = []
     stats_lat_p99 = []
     stats_lat_p999 = []
     stats_lat_p9999 = []
@@ -101,6 +145,7 @@ if __name__ == "__main__":
     for data in aggregate:
         stats_pub_rate.append(data['publishRate'])
         stats_con_rate.append(data['consumeRate'])
+        stats_backlog.append(data['backlog'])
         stats_lat_p99.append(data['publishLatency99pct'])
         stats_lat_p999.append(data['publishLatency999pct'])
         stats_lat_p9999.append(data['publishLatency9999pct'])
@@ -120,5 +165,19 @@ if __name__ == "__main__":
     # Genrate publish rate
     svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-publish-rate'
     time_series = zip(drivers, stats_pub_rate)
-    create_chart(svg, 'Publish throughput',
+    create_chart(svg, 'Publish rate',
                  y_label='Message/sec', time_series=time_series)
+
+    # Generate consume + backlog rate
+    svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-consume-rate-backlog'
+    labels_con = []
+    labels_backlog = []
+
+    for x in drivers:
+        labels_con.append(x + " - Consume Rate")
+        labels_backlog.append(x + " - Backlog")
+
+    time_series = zip(labels_con, stats_con_rate,
+                      labels_backlog, stats_backlog)
+    create_multi_chart(svg, 'Consume rate (Messages/sec - Left) w/ Backlog (No. of Messages - Right)',
+                       'Consume - Messages/sec', 'Backlog - Messages', time_series)
