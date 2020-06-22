@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -157,6 +157,7 @@ if __name__ == "__main__":
     stat_lat_avg = []
     stat_lat_max = []
     stat_lat_quantile = []
+    stat_e2e_lat_quantile = []
     drivers = []
 
     # Aggregate across all runs
@@ -171,12 +172,20 @@ if __name__ == "__main__":
         stat_lat_max.append(data['publishLatencyMax'])
 
         stat_lat_quantile.append(data['aggregatedPublishLatencyQuantiles'])
+        stat_e2e_lat_quantile.append(
+            data['aggregatedEndToEndLatencyQuantiles'])
         drivers.append(data['file'])
 
     # Generate latency quantiles
     time_series = zip(drivers, stat_lat_quantile)
     svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-latency-quantile'
     create_quantile_chart(svg, 'Publish latency quantiles',
+                          y_label='Latency (ms)',
+                          time_series=time_series)
+
+    time_series = zip(drivers, stat_e2e_lat_quantile)
+    svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-e2e-latency-quantile'
+    create_quantile_chart(svg, 'End-to-End latency quantiles',
                           y_label='Latency (ms)',
                           time_series=time_series)
 
