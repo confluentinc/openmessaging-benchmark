@@ -27,8 +27,8 @@ subscriptionsPerTopic: 1
 consumerPerSubscription: 1
 producersPerTopic: 1
 
-# Fix rate, to a very large unattainable value
-producerRate: 1000000000
+# Fix rate, to maximum rate pulsar is stable at (1.2M/sec)
+producerRate: 1200000
 
 consumerBacklogSizeGB: 0
 testDurationMinutes: 5
