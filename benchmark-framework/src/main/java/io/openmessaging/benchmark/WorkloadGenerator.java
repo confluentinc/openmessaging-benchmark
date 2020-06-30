@@ -74,10 +74,12 @@ public class WorkloadGenerator implements AutoCloseable {
         List<String> topics = worker.createTopics(new TopicsInfo(workload.topics, workload.partitionsPerTopic));
         log.info("Created {} topics in {} ms", topics.size(), timer.elapsedMillis());
 
-        createConsumers(topics);
         createProducers(topics);
 
-        ensureTopicsAreReady();
+        if (workload.consumerPerSubscription > 0) {
+            createConsumers(topics);
+            ensureTopicsAreReady();
+        }
 
         if (workload.producerRate > 0) {
             targetPublishRate = workload.producerRate;
@@ -130,12 +132,15 @@ public class WorkloadGenerator implements AutoCloseable {
 
     private void ensureTopicsAreReady() throws IOException {
         log.info("Waiting for consumers to be ready");
-        // This is work around the fact that there's no way to have a consumer ready in Kafka without first publishing
-        // some message on the topic, which will then trigger the partitions assignment to the consumers
+        // This is work around the fact that there's no way to have a consumer ready in
+        // Kafka without first publishing
+        // some message on the topic, which will then trigger the partitions assignment
+        // to the consumers
 
         int expectedMessages = workload.topics * workload.subscriptionsPerTopic;
 
-        // In this case we just publish 1 message and then wait for consumers to receive the data
+        // In this case we just publish 1 message and then wait for consumers to receive
+        // the data
         worker.probeProducers();
 
         while (true) {
@@ -156,8 +161,8 @@ public class WorkloadGenerator implements AutoCloseable {
     }
 
     /**
-     * Adjust the publish rate to a level that is sustainable, meaning that we can consume all the messages that are
-     * being produced
+     * Adjust the publish rate to a level that is sustainable, meaning that we can
+     * consume all the messages that are being produced
      */
     private void findMaximumSustainableRate(double currentRate) throws IOException {
         double maxRate = Double.MAX_VALUE; // Discovered max sustainable rate
@@ -275,12 +280,11 @@ public class WorkloadGenerator implements AutoCloseable {
     private void createConsumers(List<String> topics) throws IOException {
         ConsumerAssignment consumerAssignment = new ConsumerAssignment();
 
-        for(String topic: topics){
-            for(int i = 0; i < workload.subscriptionsPerTopic; i++){
+        for (String topic : topics) {
+            for (int i = 0; i < workload.subscriptionsPerTopic; i++) {
                 String subscriptionName = String.format("sub-%03d-%s", i, RandomGenerator.getRandomString());
                 for (int j = 0; j < workload.consumerPerSubscription; j++) {
-                    consumerAssignment.topicsSubscriptions
-                        .add(new TopicSubscription(topic, subscriptionName));
+                    consumerAssignment.topicsSubscriptions.add(new TopicSubscription(topic, subscriptionName));
                 }
             }
         }
@@ -442,14 +446,14 @@ public class WorkloadGenerator implements AutoCloseable {
                 result.aggregatedPublishLatency9999pct = agg.publishLatency.getValueAtPercentile(99.99) / 1000.0;
                 result.aggregatedPublishLatencyMax = agg.publishLatency.getMaxValue() / 1000.0;
 
-                result.aggregatedEndToEndLatencyAvg = agg.endToEndLatency.getMean()  / 1000.0;
-                result.aggregatedEndToEndLatency50pct = agg.endToEndLatency.getValueAtPercentile(50)  / 1000.0;
-                result.aggregatedEndToEndLatency75pct = agg.endToEndLatency.getValueAtPercentile(75)  / 1000.0;
-                result.aggregatedEndToEndLatency95pct = agg.endToEndLatency.getValueAtPercentile(95)  / 1000.0;
-                result.aggregatedEndToEndLatency99pct = agg.endToEndLatency.getValueAtPercentile(99)  / 1000.0;
-                result.aggregatedEndToEndLatency999pct = agg.endToEndLatency.getValueAtPercentile(99.9)  / 1000.0;
-                result.aggregatedEndToEndLatency9999pct = agg.endToEndLatency.getValueAtPercentile(99.99)  / 1000.0;
-                result.aggregatedEndToEndLatencyMax = agg.endToEndLatency.getMaxValue()  / 1000.0;
+                result.aggregatedEndToEndLatencyAvg = agg.endToEndLatency.getMean() / 1000.0;
+                result.aggregatedEndToEndLatency50pct = agg.endToEndLatency.getValueAtPercentile(50) / 1000.0;
+                result.aggregatedEndToEndLatency75pct = agg.endToEndLatency.getValueAtPercentile(75) / 1000.0;
+                result.aggregatedEndToEndLatency95pct = agg.endToEndLatency.getValueAtPercentile(95) / 1000.0;
+                result.aggregatedEndToEndLatency99pct = agg.endToEndLatency.getValueAtPercentile(99) / 1000.0;
+                result.aggregatedEndToEndLatency999pct = agg.endToEndLatency.getValueAtPercentile(99.9) / 1000.0;
+                result.aggregatedEndToEndLatency9999pct = agg.endToEndLatency.getValueAtPercentile(99.99) / 1000.0;
+                result.aggregatedEndToEndLatencyMax = agg.endToEndLatency.getMaxValue() / 1000.0;
 
                 agg.publishLatency.percentiles(100).forEach(value -> {
                     result.aggregatedPublishLatencyQuantiles.put(value.getPercentile(),
