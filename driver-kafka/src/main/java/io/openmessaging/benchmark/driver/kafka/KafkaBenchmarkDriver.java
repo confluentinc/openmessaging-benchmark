@@ -56,7 +56,7 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
 
     private Config config;
 
-    private KafkaProducer<String, byte[]> producer;
+    private List<BenchmarkProducer> producers = Collections.synchronizedList(new ArrayList<>());
     private List<BenchmarkConsumer> consumers = Collections.synchronizedList(new ArrayList<>());
 
     private Properties topicProperties;
@@ -88,8 +88,6 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
         topicProperties.load(new StringReader(config.topicConfig));
 
         admin = AdminClient.create(commonProperties);
-
-        producer = new KafkaProducer<>(producerProperties);
     }
 
     @Override
@@ -113,7 +111,18 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkProducer> createProducer(String topic) {
-        return CompletableFuture.completedFuture(new KafkaBenchmarkProducer(producer, topic));
+        KafkaProducer<String, byte[]> kafkaProducer = new KafkaProducer<>(producerProperties);
+        BenchmarkProducer benchmarkProducer = new KafkaBenchmarkProducer(kafkaProducer, topic);
+        try {
+            // Add to producer list to close later
+            producers.add(benchmarkProducer);
+            return CompletableFuture.completedFuture(benchmarkProducer);
+        } catch (Throwable t) {
+            kafkaProducer.close();
+            CompletableFuture<BenchmarkProducer> future = new CompletableFuture<>();
+            future.completeExceptionally(t);
+            return future;
+        }
     }
 
     @Override
@@ -122,12 +131,15 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
         Properties properties = new Properties();
         consumerProperties.forEach((key, value) -> properties.put(key, value));
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, subscriptionName);
-        KafkaConsumer<String, byte[]> consumer = new KafkaConsumer<>(properties);
+        KafkaConsumer<String, byte[]> kafkaConsumer = new KafkaConsumer<>(properties);
+        BenchmarkConsumer benchmarkConsumer = new KafkaBenchmarkConsumer(kafkaConsumer, consumerCallback);
         try {
-            consumer.subscribe(Arrays.asList(topic));
-            return CompletableFuture.completedFuture(new KafkaBenchmarkConsumer(consumer, consumerCallback));
+            kafkaConsumer.subscribe(Arrays.asList(topic));
+            // Add to consumer list to close later
+            consumers.add(benchmarkConsumer);
+            return CompletableFuture.completedFuture(benchmarkConsumer);
         } catch (Throwable t) {
-            consumer.close();
+            kafkaConsumer.close();
             CompletableFuture<BenchmarkConsumer> future = new CompletableFuture<>();
             future.completeExceptionally(t);
             return future;
@@ -137,7 +149,9 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public void close() throws Exception {
-        producer.close();
+        for (BenchmarkProducer producer : producers) {
+            producer.close();
+        }
 
         for (BenchmarkConsumer consumer : consumers) {
             consumer.close();
