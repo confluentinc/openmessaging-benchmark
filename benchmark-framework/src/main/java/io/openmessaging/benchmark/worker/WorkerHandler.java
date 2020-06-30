@@ -65,7 +65,7 @@ public class WorkerHandler {
 
     private void handleInitializeDriver(Context ctx) throws Exception {
         // Save config to temp file
-        File tempFile = File.createTempFile("driver-configuration", "conf");
+        File tempFile = File.createTempFile("driver-configuration" + System.currentTimeMillis(), "conf");
         Files.write(ctx.bodyAsBytes(), tempFile);
 
         localWorker.initializeDriver(tempFile);
