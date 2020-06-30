@@ -29,8 +29,8 @@
         fstype: xfs
         dev: "{{ item }}"
       with_items:
-        - "/dev/nvme0n1"
         - "/dev/nvme1n1"
+        - "/dev/nvme2n1"
     - name: Mount disks
       mount:
         path: "{{ item.path }}"
@@ -39,8 +39,8 @@
         opts: defaults,noatime,nodiscard
         state: mounted
       with_items:
-        - { path: "/mnt/data-1", src: "/dev/nvme0n1" }
-        - { path: "/mnt/data-2", src: "/dev/nvme1n1" }
+        - { path: "/mnt/data-1", src: "/dev/nvme1n1" }
+        - { path: "/mnt/data-2", src: "/dev/nvme2n1" }
 
 - name: Kafka setup
   hosts: all
@@ -66,12 +66,12 @@
     - set_fact:
         zookeeperServers: "{{ groups['zookeeper'] | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"
         boostrapServers: "{{ groups['kafka'] | map('extract', hostvars, ['private_ip']) | map('regex_replace', '^(.*)$', '\\1:9092') | join(',') }}"
-        kafkaVersion: "2.3.0"
+        kafkaVersion: "2.5.0"
     - debug:
         msg: "zookeeper servers: {{ zookeeperServers }}\nboostrap servers: {{ boostrapServers }}"
     - name: Download Kafka package
       unarchive:
-        src: http://mirrors.ocf.berkeley.edu/apache/kafka/{{ kafkaVersion }}/kafka_2.11-{{ kafkaVersion }}.tgz
+        src: http://mirrors.ocf.berkeley.edu/apache/kafka/{{ kafkaVersion }}/kafka_2.13-{{ kafkaVersion }}.tgz
         remote_src: yes
         dest: /opt/kafka
         extra_opts: ["--strip-components=1"]
