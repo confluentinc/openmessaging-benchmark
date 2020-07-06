@@ -176,6 +176,32 @@ output "client_ssh_host" {
   value = "${aws_instance.client.0.public_ip}"
 }
 
+output "client1" {
+  value = "${aws_instance.client.1.public_ip}"
+}
+
+output "client2" {
+  value = "${aws_instance.client.2.public_ip}"
+}
+
+output "client3" {
+  value = "${aws_instance.client.3.public_ip}"
+}
+
 output "prometheus_host" {
   value = "${aws_instance.prometheus.0.public_ip}"
 }
+
+output "server0" {
+  value = "${aws_instance.pulsar.0.public_ip}"
+}
+
+output "server1" {
+  value = "${aws_instance.pulsar.1.public_ip}"
+}
+
+output "server2" {
+  value = "${aws_instance.pulsar.2.public_ip}"
+}
+
+
