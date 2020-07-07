@@ -193,6 +193,13 @@ output "brokers" {
     }
 }
 
+output "zookeeper" {
+  value = {
+      for instance in aws_instance.zookeeper:
+      instance.public_ip => instance.private_ip
+    }
+}
+
 output "prometheus_host" {
   value = "${aws_instance.prometheus.0.public_ip}"
 }

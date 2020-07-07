@@ -81,6 +81,14 @@
       shell: |
         echo 'LANG=en_US.utf-8
               LC_ALL=en_US.utf-8' > /etc/environment
+    - name: Setup JMX for Prometheus
+      copy:
+        src: "monitoring/jmx_exporter/jmx_prometheus_javaagent-0.13.0.jar"
+        dest: "/opt/kafka/jmx_prometheus_javaagent-0.13.0.jar"
+    - name: Configure JMX for Prometheus
+      template:
+        src: "monitoring/jmx_exporter/metrics.yml"
+        dest: "/opt/kafka/metrics.yml"
 
 - name: Setup ZooKeeper
   hosts: zookeeper
