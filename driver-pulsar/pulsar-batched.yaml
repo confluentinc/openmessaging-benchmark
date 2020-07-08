@@ -17,18 +17,33 @@
 # under the License.
 #
 
-FROM grafana/grafana:7.0.5
+name: Pulsar
+driverClass: io.openmessaging.benchmark.driver.pulsar.PulsarBenchmarkDriver
 
-USER root
-COPY dashboards.yaml /etc/grafana/provisioning/dashboards/dashboards.yaml
-RUN  apk add curl
-USER grafana
-COPY grafana.ini /etc/grafana/grafana.ini
-COPY dashboards/* /var/lib/grafana/dashboards/
-COPY start.sh /start.sh
+# Pulsar client-specific configuration
+client:
+  serviceUrl: pulsar://localhost:6650
+  httpUrl: http://localhost:8080
+  ioThreads: 16
+  connectionsPerBroker: 16
+  clusterName: local
+  namespacePrefix: benchmark/ns
+  topicType: persistent
+  persistence:
+    ensembleSize: 3
+    writeQuorum: 3
+    ackQuorum: 2
+    deduplicationEnabled: false
+  tlsAllowInsecureConnection: false
+  tlsEnableHostnameVerification: false
+  tlsTrustCertsFilePath:
+  authentication:
+    plugin:
+    data:
 
-EXPOSE 3000
-
-ENV PROMETHEUS_URL http://prometheus:9090
-
-ENTRYPOINT ["/start.sh"]
+# Producer configuration
+producer:
+  batchingEnabled: true
+  batchingMaxPublishDelayMs: 500
+  blockIfQueueFull: true
+  pendingQueueSize: 10000
