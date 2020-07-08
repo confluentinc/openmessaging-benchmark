@@ -280,6 +280,7 @@
     - name: Copy bin node_exporter to /usr/local/bin
       copy:
         src: /tmp/node_exporter-1.0.1.linux-amd64/node_exporter
+        remote_src: yes
         dest: /usr/local/bin/
         owner: node_exporter
         group: node_exporter
