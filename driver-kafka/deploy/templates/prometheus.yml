@@ -57,4 +57,10 @@ scrape_configs:
 {% endfor %}
         labels:
           group: 'client'
+      - targets:
+{% for worker in groups['kafka'] %}
+          - {{ hostvars[worker].private_ip }}:9100
+{% endfor %}
+        labels:
+          group: 'broker-os'
 

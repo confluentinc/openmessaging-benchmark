@@ -1,6 +1,7 @@
 FROM grafana/grafana:7.0.5
 
 USER root
+COPY dashboards.yaml /etc/grafana/provisioning/dashboards/dashboards.yaml
 RUN  apk add curl
 USER grafana
 COPY grafana.ini /etc/grafana/grafana.ini

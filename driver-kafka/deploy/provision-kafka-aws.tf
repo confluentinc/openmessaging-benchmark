@@ -143,7 +143,6 @@ resource "aws_instance" "kafka" {
   subnet_id              = "${aws_subnet.benchmark_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["kafka"]}"
-  tenancy                = "dedicated"
   monitoring = true
 
   tags = {
@@ -158,7 +157,6 @@ resource "aws_instance" "client" {
   subnet_id              = "${aws_subnet.benchmark_subnet.id}"
   vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
   count                  = "${var.num_instances["client"]}"
-  tenancy                = "dedicated"
   monitoring = true
 
   tags = {
