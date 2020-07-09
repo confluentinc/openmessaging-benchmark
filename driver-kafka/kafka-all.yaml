@@ -31,8 +31,8 @@ commonConfig: |
 
 producerConfig: |
   acks=all
-  linger.ms=1
-  batch.size=131072
+  linger.ms=100
+  batch.size=1048576
 
 consumerConfig: |
   auto.offset.reset=earliest
