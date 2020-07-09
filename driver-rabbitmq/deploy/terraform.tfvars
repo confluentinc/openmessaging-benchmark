@@ -10,6 +10,6 @@ instance_types = {
 
 num_instances = {
   "rabbitmq"    = 3
-  "client"      = 1
+  "client"      = 4
   "prometheus"  = 1
 }

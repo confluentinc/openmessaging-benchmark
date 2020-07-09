@@ -47,7 +47,7 @@
       yum: pkg={{ item }} state=latest
       with_items:
         - wget
-        - java
+        - java-11
         - sysstat
         - vim
         - socat
@@ -152,6 +152,14 @@
   connection: ssh
   become: true
   tasks:
+    - name: Install RPM packages
+      yum: pkg={{ item }} state=latest
+      with_items:
+        - wget
+        - java-11
+        - sysstat
+        - vim
+        - socat
     - name: Copy benchmark code
       unarchive:
         src: ../../package/target/openmessaging-benchmark-0.0.1-SNAPSHOT-bin.tar.gz
