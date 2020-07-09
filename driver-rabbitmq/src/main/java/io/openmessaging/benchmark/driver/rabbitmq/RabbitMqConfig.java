@@ -19,6 +19,11 @@
 package io.openmessaging.benchmark.driver.rabbitmq;
 
 public class RabbitMqConfig {
+    public enum QueueType {
+        CLASSIC, QUORUM
+    }
+
     public String brokerAddress;
     public boolean messagePersistence = false;
+    public QueueType queueType = QueueType.CLASSIC;
 }

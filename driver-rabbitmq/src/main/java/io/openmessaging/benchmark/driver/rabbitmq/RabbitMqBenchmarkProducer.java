@@ -39,7 +39,7 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
     private final Channel channel;
     private final String exchange;
     private final ConfirmListener listener;
-    /**To record msg and it's future structure.**/
+    /** To record msg and it's future structure. **/
     volatile SortedSet<Long> ackSet = Collections.synchronizedSortedSet(new TreeSet<Long>());
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> futureConcurrentHashMap = new ConcurrentHashMap<>();
     private boolean messagePersistence = false;
@@ -53,9 +53,9 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
             public void handleNack(long deliveryTag, boolean multiple) throws IOException {
                 if (multiple) {
                     SortedSet<Long> treeHeadSet = ackSet.headSet(deliveryTag + 1);
-                    synchronized(ackSet) {
-                        for(Iterator iterator = treeHeadSet.iterator(); iterator.hasNext();) {
-                            long value = (long)iterator.next();
+                    synchronized (ackSet) {
+                        for (Iterator iterator = treeHeadSet.iterator(); iterator.hasNext();) {
+                            long value = (long) iterator.next();
                             iterator.remove();
                             CompletableFuture<Void> future = futureConcurrentHashMap.get(value);
                             if (future != null) {
@@ -75,12 +75,13 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
                     ackSet.remove(deliveryTag);
                 }
             }
+
             @Override
             public void handleAck(long deliveryTag, boolean multiple) throws IOException {
                 if (multiple) {
                     SortedSet<Long> treeHeadSet = ackSet.headSet(deliveryTag + 1);
-                    synchronized(ackSet) {
-                        for(long value : treeHeadSet) {
+                    synchronized (ackSet) {
+                        for (long value : treeHeadSet) {
                             CompletableFuture<Void> future = futureConcurrentHashMap.get(value);
                             if (future != null) {
                                 future.complete(null);

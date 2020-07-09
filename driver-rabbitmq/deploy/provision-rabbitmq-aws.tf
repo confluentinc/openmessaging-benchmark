@@ -155,8 +155,11 @@ output "brokers" {
     }
 }
 
-output "client_ssh_host" {
-  value = "${aws_instance.client.0.public_ip}"
+output "clients" {
+  value = {
+      for instance in aws_instance.client:
+      instance.public_ip => instance.private_ip
+    }
 }
 
 output "prometheus_host" {

@@ -21,6 +21,8 @@ package io.openmessaging.benchmark.driver.rabbitmq;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeoutException;
@@ -37,6 +39,8 @@ import io.openmessaging.benchmark.driver.BenchmarkConsumer;
 import io.openmessaging.benchmark.driver.BenchmarkDriver;
 import io.openmessaging.benchmark.driver.BenchmarkProducer;
 import io.openmessaging.benchmark.driver.ConsumerCallback;
+import io.openmessaging.benchmark.driver.rabbitmq.RabbitMqConfig.QueueType;
+
 import org.apache.bookkeeper.stats.StatsLogger;
 
 public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
@@ -44,6 +48,7 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
     private RabbitMqConfig config;
 
     private Connection connection;
+
     @Override
     public void initialize(File configurationFile, StatsLogger statsLogger) throws IOException {
         config = mapper.readValue(configurationFile, RabbitMqConfig.class);
@@ -60,8 +65,6 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
             e.printStackTrace();
         }
     }
-
-
 
     @Override
     public void close() throws Exception {
@@ -95,7 +98,8 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return CompletableFuture.completedFuture(new RabbitMqBenchmarkProducer(channel, topic, config.messagePersistence));
+        return CompletableFuture
+                .completedFuture(new RabbitMqBenchmarkProducer(channel, topic, config.messagePersistence));
     }
 
     @Override
@@ -114,7 +118,9 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
                     e.printStackTrace();
                 }
                 // Create the queue
-                channel.queueDeclare(queueName, true, false, false, Collections.emptyMap());
+                Map<String, Object> args = new HashMap<>();
+                args.put("x-queue-type", config.queueType.toString().toLowerCase());
+                channel.queueDeclare(queueName, true, false, false, args);
                 channel.queueBind(queueName, topic, "");
                 future.complete(new RabbitMqBenchmarkConsumer(channel, queueName, consumerCallback));
             } catch (IOException e) {

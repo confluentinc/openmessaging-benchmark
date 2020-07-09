@@ -17,7 +17,6 @@
 # under the License.
 #
 
-
 name: RabbitMQ
 driverClass: io.openmessaging.benchmark.driver.rabbitmq.RabbitMqBenchmarkDriver
 
@@ -25,3 +24,4 @@ driverClass: io.openmessaging.benchmark.driver.rabbitmq.RabbitMqBenchmarkDriver
 
 brokerAddress: localhost
 messagePersistence: false
+queueType: quorum
