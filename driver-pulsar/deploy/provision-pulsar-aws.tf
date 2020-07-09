@@ -204,4 +204,16 @@ output "server2" {
   value = "${aws_instance.pulsar.2.public_ip}"
 }
 
+output "zk0" {
+  value = "${aws_instance.zookeeper.0.public_ip}"
+}
+
+output "zk1" {
+  value = "${aws_instance.zookeeper.1.public_ip}"
+}
+
+output "zk2" {
+  value = "${aws_instance.zookeeper.2.public_ip}"
+}
+
 
