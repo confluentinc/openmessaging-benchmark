@@ -24,7 +24,7 @@ DRIVERS=$1
 function runtest() {
   for i in "${TESTS[@]}"
   do
-    bin/benchmark --drivers $DRIVERS $i -o $(echo $i | sed s/yaml/json/)
+    /opt/benchmark/bin/benchmark --drivers $DRIVERS $i -o $(echo $i | sed s/yaml/json/)
   done
 }
 
