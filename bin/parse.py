@@ -29,16 +29,18 @@ from itertools import chain
 from os import walk
 from os import path
 
+theme = pygal.style.CleanStyle
+fill = True
+
 
 def create_quantile_chart(workload, title, y_label, time_series):
     import math
-    chart = pygal.XY(  # style=pygal.style.LightColorizedStyle,
-        # fill=True,
-        legend_at_bottom=True,
-        x_value_formatter=lambda x: '{} %'.format(100.0 - (100.0 / (10**x))),
-        show_dots=True,
-        dots_size=.3,
-        show_x_guides=True)
+    chart = pygal.XY(style=theme, dots_size=0.5,
+                     legend_at_bottom=True,
+                     x_value_formatter=lambda x: '{} %'.format(
+                         100.0 - (100.0 / (10**x))),
+                     show_dots=True, fill=fill,
+                     show_x_guides=True)
     chart.title = title
     # chart.stroke = False
 
@@ -57,7 +59,7 @@ def create_quantile_chart(workload, title, y_label, time_series):
 
 
 def create_multi_chart(svg_file_name, title, y_label_1, y_label_2, time_series):
-    chart = pygal.XY(dots_size=.3,
+    chart = pygal.XY(style=theme, dots_size=1, show_dots=True, fill=fill,
                      legend_at_bottom=True,)
     chart.title = title
     chart.human_readable = True
@@ -84,7 +86,7 @@ def create_multi_chart(svg_file_name, title, y_label_1, y_label_2, time_series):
 
 
 def create_chart(workload, title, y_label, time_series):
-    chart = pygal.XY(dots_size=.3,
+    chart = pygal.XY(style=theme, dots_size=1, show_dots=True, fill=fill,
                      legend_at_bottom=True,)
     chart.title = title
 
@@ -189,7 +191,19 @@ if __name__ == "__main__":
                           y_label='Latency (ms)',
                           time_series=time_series)
 
-    # Genrate publish rate
+    # Generate p99 latency time-series
+    svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-publish-latency-p99'
+    time_series = zip(drivers, stats_lat_p99)
+    create_chart(svg, 'Publish Latency 99th Pct',
+                 y_label='Latency (ms)', time_series=time_series)
+
+    # Generate avg E2E latency time-series
+    svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-e2e-latency-avg'
+    time_series = zip(drivers, stat_lat_avg)
+    create_chart(svg, 'End-to-end Latency Avg',
+                 y_label='Latency (ms)', time_series=time_series)
+
+    # Generate publish rate
     svg = f'{args.msg_size}-{args.durability}-{args.ack}-acks-publish-rate'
     time_series = zip(drivers, stats_pub_rate)
     create_chart(svg, 'Publish rate',
