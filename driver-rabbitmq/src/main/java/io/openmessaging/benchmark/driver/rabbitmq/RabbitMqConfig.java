@@ -26,4 +26,5 @@ public class RabbitMqConfig {
     public String brokerAddress;
     public boolean messagePersistence = false;
     public QueueType queueType = QueueType.CLASSIC;
+    public boolean connectionPerChannel = false;
 }
