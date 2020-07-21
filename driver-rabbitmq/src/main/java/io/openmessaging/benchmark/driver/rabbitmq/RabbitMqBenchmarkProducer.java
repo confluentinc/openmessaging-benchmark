@@ -20,12 +20,7 @@ package io.openmessaging.benchmark.driver.rabbitmq;
 
 import com.rabbitmq.client.ConfirmListener;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -33,6 +28,8 @@ import com.rabbitmq.client.Channel;
 
 import io.openmessaging.benchmark.driver.BenchmarkProducer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import com.google.common.io.BaseEncoding;
 
 public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
 
@@ -43,11 +40,14 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
     volatile SortedSet<Long> ackSet = Collections.synchronizedSortedSet(new TreeSet<Long>());
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> futureConcurrentHashMap = new ConcurrentHashMap<>();
     private boolean messagePersistence = false;
+    private RoutingKeyGenerator routingKeyGenerator;
 
-    public RabbitMqBenchmarkProducer(Channel channel, String exchange, boolean messagePersistence) {
+    public RabbitMqBenchmarkProducer(Channel channel, String exchange, boolean messagePersistence,
+            RoutingKeyGenerator routingKeyGenerator) {
         this.channel = channel;
         this.exchange = exchange;
         this.messagePersistence = messagePersistence;
+        this.routingKeyGenerator = routingKeyGenerator;
         this.listener = new ConfirmListener() {
             @Override
             public void handleNack(long deliveryTag, boolean multiple) throws IOException {
@@ -126,7 +126,8 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
         ackSet.add(msgId);
         futureConcurrentHashMap.putIfAbsent(msgId, future);
         try {
-            channel.basicPublish(exchange, key.orElse(""), props, payload);
+            String routingKey = key.orElse(routingKeyGenerator.next());
+            channel.basicPublish(exchange, routingKey, props, payload);
         } catch (Exception e) {
             future.completeExceptionally(e);
         }

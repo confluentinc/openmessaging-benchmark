@@ -165,7 +165,7 @@
         src: ../../package/target/openmessaging-benchmark-0.0.1-SNAPSHOT-bin.tar.gz
         dest: /opt
     - shell: >
-        tuned-adm profile latency-performance &&
+        tuned-adm profile latency-performance && rm -rf /opt/benchmark &&
         mv /opt/openmessaging-benchmark-0.0.1-SNAPSHOT /opt/benchmark
     - name: Configure service URL
       lineinfile:
