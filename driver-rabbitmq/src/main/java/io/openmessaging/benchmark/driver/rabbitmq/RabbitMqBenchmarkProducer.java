@@ -127,6 +127,7 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
         futureConcurrentHashMap.putIfAbsent(msgId, future);
         try {
             String routingKey = key.orElse(routingKeyGenerator.next());
+
             channel.basicPublish(exchange, routingKey, props, payload);
         } catch (Exception e) {
             future.completeExceptionally(e);

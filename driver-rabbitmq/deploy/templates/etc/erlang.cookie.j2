@@ -17,11 +17,4 @@
 # under the License.
 #
 
-name: RabbitMQ
-driverClass: io.openmessaging.benchmark.driver.rabbitmq.RabbitMqBenchmarkDriver
-
-# RabbitMq client specific configurations
-
-brokerAddress: localhost
-messagePersistence: false
-queueType: CLASSIC # CLASSIC | QUORUM
+{{ rabbitmq_erlang_cookie }}

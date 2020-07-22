@@ -17,8 +17,25 @@
 # under the License.
 #
 
----
-# Install RabbitMQ Server
+- name: Add entries to /etc/hosts
+  hosts: all
+  connection: ssh
+  tasks:
+    - lineinfile:
+        dest: /etc/hosts
+        line: "{{ item.line }}"
+        state: present
+      with_items:
+        - {
+            line: "{{ hostvars[groups['rabbitmq'][0]].private_ip }} rabbitmaster",
+          }
+        - {
+            line: "{{ hostvars[groups['rabbitmq'][1]].private_ip }} rabbitslave1",
+          }
+        - {
+            line: "{{ hostvars[groups['rabbitmq'][2]].private_ip }} rabbitslave2",
+          }
+
 - name: Install RabbitMQ Cluster
   hosts: rabbitmq
   connection: ssh
@@ -42,111 +59,74 @@
       yum:
         name: https://dl.bintray.com/rabbitmq/all/rabbitmq-server/{{ rabbitMqVersion }}/rabbitmq-server-{{ rabbitMqVersion }}-1.el7.noarch.rpm
         state: present
+
+    - name: Change master hostname to rabbitmaster
+      hostname:
+        name: "rabbitmaster"
+      when: rabbitmq_master is defined
+
+    - name: Change slave1 hostname to rabbitslave1
+      hostname:
+        name: "rabbitslave1"
+      when: rabbitslave1 is defined
+
+    - name: Change slave2 hostname to rabbitslave2
+      hostname:
+        name: "rabbitslave2"
+      when: rabbitslave2 is defined
+
     - systemd:
         state: started
         daemon_reload: yes
         name: "rabbitmq-server"
+    - name: Install web management
+      shell: rabbitmq-plugins enable rabbitmq_management
     - systemd:
         state: restarted
         daemon_reload: yes
         name: "rabbitmq-server"
-
-# Configure RabbitMQ for cluster
-- name: Configure RabbitMQ for cluster
-  hosts: rabbitmq
-  connection: ssh
-  handlers:
-    - name: restart rabbitmq-server
-      service: name=rabbitmq-server state=restarted
-
-    - name: start rabbitmq-server
-      service: name=rabbitmq-server state=started
-
-    - name: stop rabbitmq-server
-      service: name=rabbitmq-server state=stopped
-  tasks:
-    - name: backup old erlang cookie
-      shell: cp -a /var/lib/rabbitmq/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie.old
-      changed_when: false
-
-    - name: updating rabbitmq erlang cookie
-      template:
-        src: etc/erlang.cookie.j2
-        dest: /var/lib/rabbitmq/.erlang.cookie
-        owner: rabbitmq
-        group: rabbitmq
-        mode: 0400
-      notify: stop rabbitmq-server
-
-    - name: remove old erlang cookie
-      file:
-        path: /var/lib/rabbitmq/.erlang.cookie.old
-        state: absent
-      changed_when: false
-
-    - name: rabbitmq default file
-      template:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        owner: root
-        group: root
-        mode: 0644
-      with_items:
-        - {
-            src: etc/default/rabbitmq-server.j2,
-            dest: /etc/default/rabbitmq-server,
-          }
-        - {
-            src: etc/rabbitmq/rabbitmq.config.j2,
-            dest: /etc/rabbitmq/rabbitmq.config,
-          }
-        - {
-            src: etc/rabbitmq/rabbitmq-env.conf.j2,
-            dest: /etc/rabbitmq/rabbitmq-env.conf,
-          }
-      notify: restart rabbitmq-server
-
-    - name: Enable the plugins installed
-      rabbitmq_plugin:
-        names: "{{ item }}"
-        prefix: /usr/lib/rabbitmq
-        state: enabled
-        new_only: yes
-      with_items: "{{ rabbitmq_plugins }}"
-      notify: restart rabbitmq-server
-
-    - name: rabbitmq service started and enabled
-      service:
-        name: rabbitmq-server
-        enabled: yes
-        state: restarted
-
-    - name: make sure rabbitmq app is up
-      command: rabbitmqctl start_app
-
-    # - name: stop rabbitmq app
-    #   command: rabbitmqctl stop_app
-    #   when: inventory_hostname != {{ groups['rabbitmq'][0] }}
-
-    # - name: add this node to cluster
-    #   command: rabbitmqctl join_cluster rabbit@{{ rabbitmq_cluster_master }}
-    #   when: inventory_hostname != {{ groups['rabbitmq'][0] }}
-
-    # - name: start rabbitmq app
-    #   command: rabbitmqctl start_app
-    #   when: inventory_hostname != {{ groups['rabbitmq'][0] }}
-
     - name: create admin/admin  profile
       shell: rabbitmqctl add_user admin  admin
     - name: set admin tag
       shell: rabbitmqctl set_user_tags admin administrator
     - name: set admin permission
       shell: rabbitmqctl set_permissions -p "/" admin ".*" ".*" ".*"
-
-    - name: set ha-mode to exactly two nodes for all queues for backup
-      shell: rabbitmqctl set_policy ha-exactly-two ".*" '{"ha-mode":"exactly","ha-params":2,"ha-sync-mode":"automatic"}'
-      register: res
-      failed_when: res.rc != 0
+    - name: Clear servers' Erlang cookie
+      file:
+        path: /var/lib/rabbitmq/.erlang.cookie
+        state: absent
+    - name: Copy Erlang cookie
+      copy: src=erlang.cookie  dest=/var/lib/rabbitmq/.erlang.cookie  owner=rabbitmq group=rabbitmq mode=0400
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "rabbitmq-server"
+    - name: RabbitMQ status
+      shell: rabbitmqctl cluster_status
+      register: result
+    - debug:
+        msg: "{{ result.stdout }}"
+    - name: Rabbit cluster stop slaves
+      shell: rabbitmqctl stop_app
+      when: rabbitmq_slave is defined
+    - name: Rabbit cluster slaves join master
+      shell: rabbitmqctl join_cluster rabbit@rabbitmaster
+      when: rabbitmq_slave is defined
+    - name: Start RabbitMQ cluster slaves
+      shell: rabbitmqctl start_app
+      when: rabbitmq_slave is defined
+    - name: Show RabbitMQ cluster status
+      shell: rabbitmqctl cluster_status
+    - name: Create high availability pllicy
+      shell: rabbitmqctl set_policy ha-all "^" '{"ha-mode":"exactly","ha-params":2,"ha-sync-mode":"automatic"}'
+      when: rabbitmq_master is defined
+    - name: Show queue list
+      shell: rabbitmqctl list_queues
+      register: result_queue
+    - debug: msg='{{result_queue.stdout}}'
+    - name: Enable the prometheus scraper
+      become: true
+      shell: rabbitmq-plugins enable rabbitmq_prometheus
 
 - name: Rabbitmq benchmarking client setup
   hosts: client
@@ -176,9 +156,6 @@
     - template:
         src: "templates/workers.yaml"
         dest: "/opt/benchmark/workers.yaml"
-    - template:
-        src: "templates/rabbitmq.yaml"
-        dest: "/opt/benchmark/driver-rabbitmq/rabbitmq.yaml"
     - name: Install benchmark systemd service
       template:
         src: "templates/benchmark-worker.service"

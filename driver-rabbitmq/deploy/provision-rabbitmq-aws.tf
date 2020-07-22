@@ -99,6 +99,14 @@ resource "aws_security_group" "benchmark_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # RabbitMQ dashboard
+  ingress {
+    from_port   = 15672
+    to_port     = 15672
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
     Name = "Benchmark-Security-Group-RabbitMQ"
   }
@@ -150,16 +158,16 @@ resource "aws_instance" "prometheus" {
 
 output "brokers" {
   value = {
-      for instance in aws_instance.rabbitmq:
-      instance.public_ip => instance.private_ip
-    }
+    for instance in aws_instance.rabbitmq :
+    instance.public_ip => instance.private_ip
+  }
 }
 
 output "clients" {
   value = {
-      for instance in aws_instance.client:
-      instance.public_ip => instance.private_ip
-    }
+    for instance in aws_instance.client :
+    instance.public_ip => instance.private_ip
+  }
 }
 
 output "prometheus_host" {

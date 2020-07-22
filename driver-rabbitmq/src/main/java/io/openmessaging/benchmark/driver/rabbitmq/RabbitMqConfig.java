@@ -23,8 +23,8 @@ public class RabbitMqConfig {
         CLASSIC, QUORUM
     }
 
-    public String brokerAddress;
+    public String[] brokers;
     public boolean messagePersistence = false;
     public QueueType queueType = QueueType.CLASSIC;
-    public boolean connectionPerChannel = false;
+    public int routingKeyLength = 7;
 }
