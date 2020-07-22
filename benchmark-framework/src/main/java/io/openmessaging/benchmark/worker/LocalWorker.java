@@ -141,24 +141,36 @@ public class LocalWorker implements Worker, ConsumerCallback {
     }
 
     @Override
-    public List<String> createTopics(TopicsInfo topicsInfo) {
+    public List<Topic> createTopics(TopicsInfo topicsInfo) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         Timer timer = new Timer();
 
         String topicPrefix = benchmarkDriver.getTopicNamePrefix();
 
-        List<String> topics = new ArrayList<>();
+        List<Topic> topics = new ArrayList<>();
         for (int i = 0; i < topicsInfo.numberOfTopics; i++) {
-            String topic = String.format("%s-%s-%04d", topicPrefix, RandomGenerator.getRandomString(), i);
+            Topic topic = new Topic(String.format("%s-%s-%04d", topicPrefix, RandomGenerator.getRandomString(), i),
+                    topicsInfo.numberOfPartitionsPerTopic);
             topics.add(topic);
-            futures.add(benchmarkDriver.createTopic(topic, topicsInfo.numberOfPartitionsPerTopic));
+            futures.add(benchmarkDriver.createTopic(topic.name, topic.partitions));
         }
 
         futures.forEach(CompletableFuture::join);
 
         log.info("Created {} topics in {} ms", topics.size(), timer.elapsedMillis());
         return topics;
+    }
+
+    @Override
+    public void notifyTopicCreation(List<Topic> topics) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        for (Topic topic : topics) {
+            futures.add(benchmarkDriver.notifyTopicCreation(topic.name, topic.partitions));
+        }
+
+        futures.forEach(CompletableFuture::join);
     }
 
     @Override
@@ -216,8 +228,7 @@ public class LocalWorker implements Worker, ConsumerCallback {
                     producers.forEach(producer -> {
                         rateLimiter.acquire();
                         final long sendTime = System.nanoTime();
-                        producer.sendAsync(Optional.ofNullable(keyDistributor.next()), payloadData)
-                                .thenRun(() -> {
+                        producer.sendAsync(Optional.ofNullable(keyDistributor.next()), payloadData).thenRun(() -> {
                             messagesSent.increment();
                             totalMessagesSent.increment();
                             messagesSentCounter.inc();
@@ -242,7 +253,7 @@ public class LocalWorker implements Worker, ConsumerCallback {
 
     @Override
     public void adjustPublishRate(double publishRate) {
-        if(publishRate < 1.0) {
+        if (publishRate < 1.0) {
             rateLimiter.setRate(1.0);
             return;
         }

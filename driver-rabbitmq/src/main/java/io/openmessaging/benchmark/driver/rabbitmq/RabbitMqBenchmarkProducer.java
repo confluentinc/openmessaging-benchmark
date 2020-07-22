@@ -24,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 
 import io.openmessaging.benchmark.driver.BenchmarkProducer;
@@ -41,11 +42,13 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> futureConcurrentHashMap = new ConcurrentHashMap<>();
     private boolean messagePersistence = false;
     private RoutingKeyGenerator routingKeyGenerator;
+    private BuiltinExchangeType exchangeType;
 
-    public RabbitMqBenchmarkProducer(Channel channel, String exchange, boolean messagePersistence,
-            RoutingKeyGenerator routingKeyGenerator) {
+    public RabbitMqBenchmarkProducer(Channel channel, String exchange, BuiltinExchangeType exchangeType,
+            boolean messagePersistence, RoutingKeyGenerator routingKeyGenerator) {
         this.channel = channel;
         this.exchange = exchange;
+        this.exchangeType = exchangeType;
         this.messagePersistence = messagePersistence;
         this.routingKeyGenerator = routingKeyGenerator;
         this.listener = new ConfirmListener() {
@@ -127,7 +130,7 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
         futureConcurrentHashMap.putIfAbsent(msgId, future);
         try {
             String routingKey = key.orElse(routingKeyGenerator.next());
-
+            channel.exchangeDeclare(exchange, exchangeType, messagePersistence);
             channel.basicPublish(exchange, routingKey, props, payload);
         } catch (Exception e) {
             future.completeExceptionally(e);

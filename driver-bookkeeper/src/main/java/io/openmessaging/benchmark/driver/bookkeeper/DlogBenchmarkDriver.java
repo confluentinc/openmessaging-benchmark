@@ -50,7 +50,7 @@ public class DlogBenchmarkDriver implements BenchmarkDriver {
 
     private static final Logger log = LoggerFactory.getLogger(DlogBenchmarkProducer.class);
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory())
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private Config config;
     private Namespace namespace;
@@ -70,14 +70,10 @@ public class DlogBenchmarkDriver implements BenchmarkDriver {
         }
         URI dlogUri = URI.create(config.dlogUri);
 
-        dlshade.org.apache.bookkeeper.stats.StatsLogger dlStatsLogger =
-            new CachingStatsLogger(new StatsLoggerAdaptor(statsLogger.scope("dlog")));
+        dlshade.org.apache.bookkeeper.stats.StatsLogger dlStatsLogger = new CachingStatsLogger(
+                new StatsLoggerAdaptor(statsLogger.scope("dlog")));
 
-        namespace = NamespaceBuilder.newBuilder()
-            .conf(conf)
-            .uri(dlogUri)
-            .statsLogger(dlStatsLogger)
-            .build();
+        namespace = NamespaceBuilder.newBuilder().conf(conf).uri(dlogUri).statsLogger(dlStatsLogger).build();
 
         log.info("Initialized distributedlog namespace at {}", dlogUri);
     }
@@ -103,11 +99,16 @@ public class DlogBenchmarkDriver implements BenchmarkDriver {
                 }
                 log.info("Successfully create topic {} with {} partitions", topic, partitions);
             } catch (IOException ioe) {
-                log.error("Failed to create topic {} with {} partitions",
-                    topic, partitions, ioe);
+                log.error("Failed to create topic {} with {} partitions", topic, partitions, ioe);
                 throw new RuntimeException(ioe);
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> notifyTopicCreation(String topic, int partitions) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -120,15 +121,11 @@ public class DlogBenchmarkDriver implements BenchmarkDriver {
             } catch (IOException ioe) {
                 throw new RuntimeException(ioe);
             }
-        })
-        .thenCompose(dlm -> dlm.openAsyncLogWriter())
-        .thenApply(writer -> new DlogBenchmarkProducer(writer));
+        }).thenCompose(dlm -> dlm.openAsyncLogWriter()).thenApply(writer -> new DlogBenchmarkProducer(writer));
     }
 
     @Override
-    public CompletableFuture<BenchmarkConsumer> createConsumer(
-            String topic,
-            String subscriptionName,
+    public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
             ConsumerCallback consumerCallback) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -138,8 +135,7 @@ public class DlogBenchmarkDriver implements BenchmarkDriver {
             } catch (IOException ioe) {
                 throw new RuntimeException(ioe);
             }
-        })
-        .thenApply(dlm -> new DlogBenchmarkConsumer(dlm, consumerCallback));
+        }).thenApply(dlm -> new DlogBenchmarkConsumer(dlm, consumerCallback));
     }
 
     @Override

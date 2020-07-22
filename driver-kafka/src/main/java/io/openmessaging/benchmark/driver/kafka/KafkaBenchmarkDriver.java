@@ -110,6 +110,12 @@ public class KafkaBenchmarkDriver implements BenchmarkDriver {
     }
 
     @Override
+    public CompletableFuture<Void> notifyTopicCreation(String topic, int partitions) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<BenchmarkProducer> createProducer(String topic) {
         KafkaProducer<String, byte[]> kafkaProducer = new KafkaProducer<>(producerProperties);
         BenchmarkProducer benchmarkProducer = new KafkaBenchmarkProducer(kafkaProducer, topic);

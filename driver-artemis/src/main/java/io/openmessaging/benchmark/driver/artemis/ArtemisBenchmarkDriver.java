@@ -57,7 +57,7 @@ public class ArtemisBenchmarkDriver implements BenchmarkDriver {
         try {
             ServerLocator serverLocator = ActiveMQClient.createServerLocator(config.brokerAddress);
             serverLocator.setConfirmationWindowSize(1000);
-            
+
             sessionFactory = serverLocator.createSessionFactory();
             session = sessionFactory.createSession();
         } catch (Exception e) {
@@ -88,6 +88,12 @@ public class ArtemisBenchmarkDriver implements BenchmarkDriver {
         });
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> notifyTopicCreation(String topic, int partitions) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

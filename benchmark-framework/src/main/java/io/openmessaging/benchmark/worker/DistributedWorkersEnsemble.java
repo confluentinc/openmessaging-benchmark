@@ -31,7 +31,11 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.zip.DataFormatException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import org.HdrHistogram.Histogram;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -86,11 +90,26 @@ public class DistributedWorkersEnsemble implements Worker {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public List<String> createTopics(TopicsInfo topicsInfo) throws IOException {
+    public List<Topic> createTopics(TopicsInfo topicsInfo) throws IOException {
         // Create all topics from a single worker node
-        return (List<String>) post(workers.get(0), "/create-topics", writer.writeValueAsBytes(topicsInfo), List.class)
-                .join();
+        return (List<Topic>) post(workers.get(0), "/create-topics", writer.writeValueAsBytes(topicsInfo),
+                new TypeReference<List<Topic>>() {
+                }).join();
+    }
+
+    @Override
+    public void notifyTopicCreation(List<Topic> topics) throws IOException {
+        List<CompletableFuture<Void>> futures = workers.stream().map(worker -> {
+            try {
+                return sendPost(worker, "/notify-topic-creation", writer.writeValueAsBytes(topics));
+            } catch (JsonProcessingException e) {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                future.completeExceptionally(e);
+                return future;
+            }
+        }).collect(toList());
+
+        FutureUtil.waitForAll(futures).join();
     }
 
     @Override
@@ -278,7 +297,8 @@ public class DistributedWorkersEnsemble implements Worker {
     private CompletableFuture<Void> sendPost(String host, String path, byte[] body) {
         return httpClient.preparePost(host + path).setBody(body).execute().toCompletableFuture().thenApply(x -> {
             if (x.getStatusCode() != 200) {
-                log.error("Failed to do HTTP post request to {}{} -- code: {}", host, path, x.getStatusCode());
+                log.error("Failed to do HTTP post request to {}{} -- code: {} error: {}", host, path, x.getStatusCode(),
+                        x.getResponseBody());
             }
             Preconditions.checkArgument(x.getStatusCode() == 200);
             return (Void) null;
@@ -314,7 +334,7 @@ public class DistributedWorkersEnsemble implements Worker {
         });
     }
 
-    private <T> CompletableFuture<T> post(String host, String path, byte[] body, Class<T> clazz) {
+    private <T> CompletableFuture<T> post(String host, String path, byte[] body, TypeReference<T> type) {
         return httpClient.preparePost(host + path).setBody(body).execute().toCompletableFuture().thenApply(response -> {
             try {
                 if (response.getStatusCode() != 200) {
@@ -322,7 +342,7 @@ public class DistributedWorkersEnsemble implements Worker {
                             response.getStatusCode());
                 }
                 Preconditions.checkArgument(response.getStatusCode() == 200);
-                return mapper.readValue(response.getResponseBody(), clazz);
+                return mapper.readValue(response.getResponseBody(), type);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

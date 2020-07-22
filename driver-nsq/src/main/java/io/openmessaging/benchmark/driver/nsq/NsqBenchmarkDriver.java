@@ -41,16 +41,19 @@ import org.slf4j.LoggerFactory;
 public class NsqBenchmarkDriver implements BenchmarkDriver {
     private NsqConfig config;
 
-    @Override public void initialize(File configurationFile, StatsLogger statsLogger) throws IOException {
+    @Override
+    public void initialize(File configurationFile, StatsLogger statsLogger) throws IOException {
         config = mapper.readValue(configurationFile, NsqConfig.class);
         log.info("read config file," + config.toString());
     }
 
-    @Override public String getTopicNamePrefix() {
+    @Override
+    public String getTopicNamePrefix() {
         return "Nsq-Benchmark";
     }
 
-    @Override public CompletableFuture<Void> createTopic(String topic, int partitions) {
+    @Override
+    public CompletableFuture<Void> createTopic(String topic, int partitions) {
         log.info("create a topic" + topic);
         log.info("ignore partitions");
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -58,7 +61,14 @@ public class NsqBenchmarkDriver implements BenchmarkDriver {
         return future;
     }
 
-    @Override public CompletableFuture<BenchmarkProducer> createProducer(final String topic) {
+    @Override
+    public CompletableFuture<Void> notifyTopicCreation(String topic, int partitions) {
+        // No-op
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<BenchmarkProducer> createProducer(final String topic) {
         NSQProducer nsqProducer = new NSQProducer();
         nsqProducer.addAddress(config.nsqdHost, 4150);
         nsqProducer.start();
@@ -67,18 +77,20 @@ public class NsqBenchmarkDriver implements BenchmarkDriver {
         return CompletableFuture.completedFuture(new NsqBenchmarkProducer(nsqProducer, topic));
     }
 
-    @Override public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-        ConsumerCallback consumerCallback) {
-        //Channel can be treat as subscriptionName
+    @Override
+    public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
+            ConsumerCallback consumerCallback) {
+        // Channel can be treat as subscriptionName
         NSQLookup lookup = new DefaultNSQLookup();
         lookup.addLookupAddress(config.lookupHost, 4161);
         NSQConsumer nsqConsumer = new NSQConsumer(lookup, topic, subscriptionName, (message) -> {
-            //now mark the message as finished.
+            // now mark the message as finished.
             consumerCallback.messageReceived(message.getMessage(), message.getTimestamp().getTime());
             message.finished();
 
-            //or you could requeue it, which indicates a failure and puts it back on the queue.
-            //message.requeue();
+            // or you could requeue it, which indicates a failure and puts it back on the
+            // queue.
+            // message.requeue();
         });
 
         nsqConsumer.start();
@@ -87,11 +99,13 @@ public class NsqBenchmarkDriver implements BenchmarkDriver {
         return CompletableFuture.completedFuture(new NsqBenchmarkConsumer(nsqConsumer));
     }
 
-    @Override public void close() throws Exception {
+    @Override
+    public void close() throws Exception {
 
     }
+
     private static final Logger log = LoggerFactory.getLogger(NsqBenchmarkDriver.class);
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory())
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
 }

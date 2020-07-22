@@ -42,6 +42,8 @@ import io.openmessaging.benchmark.driver.ConsumerCallback;
 import io.openmessaging.benchmark.driver.rabbitmq.RabbitMqConfig.QueueType;
 
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // Based on the KeyDistributor from the framework
 // Generates routing keys to "channel" messages to specific queues
@@ -55,11 +57,19 @@ class RoutingKeyGenerator {
         KEY_COUNT = partitions;
         keys = new String[KEY_COUNT];
 
-        byte[] buffer = new byte[keyLength];
-        Random random = new Random();
-        for (int i = 0; i < keys.length; i++) {
-            random.nextBytes(buffer);
-            keys[i] = BaseEncoding.base64Url().omitPadding().encode(buffer);
+        // byte[] buffer = new byte[keyLength];
+        // Random random = new Random();
+        // for (int i = 0; i < keys.length; i++) {
+        // random.nextBytes(buffer);
+        // keys[i] = BaseEncoding.base64Url().omitPadding().encode(buffer);
+        // }
+
+        // Repeatable routing keys - Partition Number as string
+        // When run on workers hosted on different physical machines/processes
+        // consumers need to listen to the same routing keys as producers
+        // TODO: Pass list of routing keys along w/ topics to consumer
+        for (int i = 0; i < partitions; i++) {
+            keys[i] = String.valueOf(i);
         }
     }
 
@@ -109,11 +119,11 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
 
     private ConnectionManager connectionManager;
 
-    private BuiltinExchangeType exchangeType;
-
     private Map<String, RoutingKeyGenerator> topicRoutingKeyGenerator = new HashMap<>();
 
     private int routingKeyLength;
+
+    private static final Logger log = LoggerFactory.getLogger(RabbitMqBenchmarkDriver.class);
 
     @Override
     public void initialize(File configurationFile, StatsLogger statsLogger) throws IOException {
@@ -129,31 +139,23 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public String getTopicNamePrefix() {
-        return "test-topic";
+        return config.topicPrefix;
     }
 
     @Override
     public CompletableFuture<Void> createTopic(String topic, int partitions) {
-        topicRoutingKeyGenerator.put(topic, new RoutingKeyGenerator(partitions, routingKeyLength));
-        // Use routing keys to simulate multiple partitions, if no. of partitions > 1
-        if (partitions > 1) {
-            exchangeType = BuiltinExchangeType.TOPIC;
-        } else {
-            exchangeType = BuiltinExchangeType.FANOUT;
+        if (!topicRoutingKeyGenerator.containsKey(topic)) {
+            topicRoutingKeyGenerator.put(topic, new RoutingKeyGenerator(partitions, routingKeyLength));
         }
+        return CompletableFuture.completedFuture(null);
+    }
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            Connection connection = connectionManager.connectAny();
-            Channel channel = connection.createChannel();
-            channel.exchangeDeclare(topic, exchangeType, config.messagePersistence);
-            future.complete(null);
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-            future.completeExceptionally(e);
+    @Override
+    public CompletableFuture<Void> notifyTopicCreation(String topic, int partitions) {
+        if (!topicRoutingKeyGenerator.containsKey(topic)) {
+            topicRoutingKeyGenerator.put(topic, new RoutingKeyGenerator(partitions, routingKeyLength));
         }
-
-        return future;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -165,7 +167,7 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
             Channel channel = connection.createChannel();
             channel.confirmSelect();
             future = CompletableFuture.completedFuture(new RabbitMqBenchmarkProducer(channel, topic,
-                    config.messagePersistence, topicRoutingKeyGenerator.get(topic)));
+                    config.exchangeType, config.messagePersistence, topicRoutingKeyGenerator.get(topic)));
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();
             future.completeExceptionally(e);
@@ -185,12 +187,21 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
                 Channel channel = connection.createChannel();
 
                 // Consume everything (all "partitions")
-                // channel.exchangeDeclare(topic, exchangeType, config.messagePersistence);
+                channel.exchangeDeclare(topic, config.exchangeType, config.messagePersistence);
 
                 Map<String, Object> args = new HashMap<>();
                 args.put("x-queue-type", config.queueType.toString().toLowerCase());
                 channel.queueDeclare(queueName, config.messagePersistence, false, false, args);
-                channel.queueBind(queueName, topic, "#");
+                log.info("Exchange type - {}", config.exchangeType.toString());
+                // Bind to all, if topic-based exchange
+                if (config.exchangeType == BuiltinExchangeType.TOPIC) {
+                    channel.queueBind(queueName, topic, "#");
+                } else if (config.exchangeType == BuiltinExchangeType.DIRECT) {
+                    // When no. of partitions == 1, we use a direct exchange - Binds directly to the
+                    // exchange
+                    channel.queueBind(queueName, topic, topicRoutingKeyGenerator.get(topic).next());
+                    log.info("Bound queue -> {} to exchange -> {}", queueName, topic);
+                }
                 future.complete(new RabbitMqBenchmarkConsumer(channel, queueName, consumerCallback));
             } catch (IOException | TimeoutException e) {
                 future.completeExceptionally(e);

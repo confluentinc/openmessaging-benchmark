@@ -25,5 +25,7 @@ brokers:
 {% for worker in groups['rabbitmq'] %}
   - {{ hostvars[worker].private_ip }}
 {% endfor %}
-messagePersistence: false
+messagePersistence: true
 queueType: CLASSIC # CLASSIC | QUORUM
+exchangeType: DIRECT # DIRECT | TOPIC | FANOUT | HEADERS
+topicPrefix: benchrabbit

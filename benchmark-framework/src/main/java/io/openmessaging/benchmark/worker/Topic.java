@@ -16,19 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.openmessaging.benchmark.driver.rabbitmq;
+package io.openmessaging.benchmark.worker;
 
-import com.rabbitmq.client.BuiltinExchangeType;
+public class Topic {
+    public String name;
+    public int partitions;
 
-public class RabbitMqConfig {
-    public enum QueueType {
-        CLASSIC, QUORUM
+    public Topic() {
     }
 
-    public String[] brokers;
-    public boolean messagePersistence = false;
-    public QueueType queueType = QueueType.CLASSIC;
-    public int routingKeyLength = 7;
-    public String topicPrefix = "test-topic";
-    public BuiltinExchangeType exchangeType = BuiltinExchangeType.DIRECT;
+    public Topic(String name, int partitions) {
+        this.name = name;
+        this.partitions = partitions;
+    }
 }

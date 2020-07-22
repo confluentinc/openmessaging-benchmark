@@ -36,6 +36,7 @@ import io.openmessaging.benchmark.utils.PaddingDecimalFormat;
 import io.openmessaging.benchmark.utils.Timer;
 import io.openmessaging.benchmark.utils.payload.FilePayloadReader;
 import io.openmessaging.benchmark.utils.payload.PayloadReader;
+import io.openmessaging.benchmark.worker.Topic;
 import io.openmessaging.benchmark.worker.Worker;
 import io.openmessaging.benchmark.worker.commands.ConsumerAssignment;
 import io.openmessaging.benchmark.worker.commands.CountersStats;
@@ -71,14 +72,17 @@ public class WorkloadGenerator implements AutoCloseable {
 
     public TestResult run() throws Exception {
         Timer timer = new Timer();
-        List<String> topics = worker.createTopics(new TopicsInfo(workload.topics, workload.partitionsPerTopic));
+        List<Topic> topics = worker.createTopics(new TopicsInfo(workload.topics, workload.partitionsPerTopic));
         log.info("Created {} topics in {} ms", topics.size(), timer.elapsedMillis());
+
+        // Notify other workers about these topics
+        worker.notifyTopicCreation(topics);
 
         createProducers(topics);
 
         if (workload.consumerPerSubscription > 0) {
             createConsumers(topics);
-            ensureTopicsAreReady();
+            // ensureTopicsAreReady();
         }
 
         if (workload.producerRate > 0) {
@@ -277,14 +281,14 @@ public class WorkloadGenerator implements AutoCloseable {
         executor.shutdownNow();
     }
 
-    private void createConsumers(List<String> topics) throws IOException {
+    private void createConsumers(List<Topic> topics) throws IOException {
         ConsumerAssignment consumerAssignment = new ConsumerAssignment();
 
-        for (String topic : topics) {
+        for (Topic topic : topics) {
             for (int i = 0; i < workload.subscriptionsPerTopic; i++) {
                 String subscriptionName = String.format("sub-%03d-%s", i, RandomGenerator.getRandomString());
                 for (int j = 0; j < workload.consumerPerSubscription; j++) {
-                    consumerAssignment.topicsSubscriptions.add(new TopicSubscription(topic, subscriptionName));
+                    consumerAssignment.topicsSubscriptions.add(new TopicSubscription(topic.name, subscriptionName));
                 }
             }
         }
@@ -297,12 +301,12 @@ public class WorkloadGenerator implements AutoCloseable {
         log.info("Created {} consumers in {} ms", consumerAssignment.topicsSubscriptions.size(), timer.elapsedMillis());
     }
 
-    private void createProducers(List<String> topics) throws IOException {
+    private void createProducers(List<Topic> topics) throws IOException {
         List<String> fullListOfTopics = new ArrayList<>();
 
         // Add the topic multiple times, one for each producer
         for (int i = 0; i < workload.producersPerTopic; i++) {
-            topics.forEach(fullListOfTopics::add);
+            topics.forEach(topic -> fullListOfTopics.add(topic.name));
         }
 
         Collections.shuffle(fullListOfTopics);
@@ -313,7 +317,7 @@ public class WorkloadGenerator implements AutoCloseable {
         log.info("Created {} producers in {} ms", fullListOfTopics.size(), timer.elapsedMillis());
     }
 
-    private void buildAndDrainBacklog(List<String> topics) throws IOException {
+    private void buildAndDrainBacklog(List<Topic> topics) throws IOException {
         log.info("Stopping all consumers to build backlog");
         worker.pauseConsumers();
 
