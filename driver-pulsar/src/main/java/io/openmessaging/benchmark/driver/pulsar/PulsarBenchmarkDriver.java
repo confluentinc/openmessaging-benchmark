@@ -22,6 +22,7 @@ package io.openmessaging.benchmark.driver.pulsar;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -171,7 +172,7 @@ public class PulsarBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback) {
+                                                               Optional<Integer> partition, ConsumerCallback consumerCallback) {
         return client.newConsumer().priorityLevel(0).subscriptionType(SubscriptionType.Failover)
                 .messageListener((consumer, msg) -> {
                     consumerCallback.messageReceived(msg.getData(), msg.getPublishTime());

@@ -20,6 +20,7 @@ package io.openmessaging.benchmark.driver.artemis;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 
@@ -109,7 +110,7 @@ public class ArtemisBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback) {
+                                                               Optional<Integer> partition, ConsumerCallback consumerCallback) {
         CompletableFuture<BenchmarkConsumer> future = new CompletableFuture<>();
         ForkJoinPool.commonPool().submit(() -> {
             try {

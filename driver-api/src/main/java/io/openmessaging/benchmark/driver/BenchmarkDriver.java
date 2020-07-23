@@ -20,6 +20,7 @@ package io.openmessaging.benchmark.driver;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.stats.StatsLogger;
 
@@ -73,5 +74,5 @@ public interface BenchmarkDriver extends AutoCloseable {
      * @return
      */
     CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback);
+            Optional<Integer> partition, ConsumerCallback consumerCallback);
 }

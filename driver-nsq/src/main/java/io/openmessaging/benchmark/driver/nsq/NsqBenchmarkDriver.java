@@ -32,6 +32,7 @@ import io.openmessaging.benchmark.driver.BenchmarkProducer;
 import io.openmessaging.benchmark.driver.ConsumerCallback;
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.logging.log4j.LogManager;
@@ -79,7 +80,7 @@ public class NsqBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback) {
+                                                               Optional<Integer> partition, ConsumerCallback consumerCallback) {
         // Channel can be treat as subscriptionName
         NSQLookup lookup = new DefaultNSQLookup();
         lookup.addLookupAddress(config.lookupHost, 4161);

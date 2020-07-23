@@ -36,6 +36,7 @@ import io.openmessaging.benchmark.driver.BenchmarkProducer;
 import io.openmessaging.benchmark.driver.ConsumerCallback;
 import java.io.File;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -104,7 +105,7 @@ public class NatsStreamingBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback) {
+                                                               Optional<Integer> partition, ConsumerCallback consumerCallback) {
         Subscription sub;
         StreamingConnection streamingConnection;
         String clientId = "ConsumerInstance" + getRandomString();

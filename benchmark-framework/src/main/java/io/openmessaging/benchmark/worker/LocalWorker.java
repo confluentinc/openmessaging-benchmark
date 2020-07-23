@@ -189,7 +189,8 @@ public class LocalWorker implements Worker, ConsumerCallback {
         Timer timer = new Timer();
 
         List<CompletableFuture<BenchmarkConsumer>> futures = consumerAssignment.topicsSubscriptions.stream()
-                .map(ts -> benchmarkDriver.createConsumer(ts.topic, ts.subscription, this)).collect(toList());
+                .map(ts -> benchmarkDriver.createConsumer(ts.topic, ts.subscription, Optional.of(ts.partition), this))
+                .collect(toList());
 
         futures.forEach(f -> consumers.add(f.join()));
         log.info("Created {} consumers in {} ms", consumers.size(), timer.elapsedMillis());
