@@ -365,4 +365,14 @@ public class DistributedWorkersEnsemble implements Worker {
 
     private static final Logger log = LoggerFactory.getLogger(DistributedWorkersEnsemble.class);
 
+    @Override
+    public void pauseProducers() throws IOException {
+        sendPost(producerWorkers, "/pause-producers", new byte[0]);
+    }
+
+    @Override
+    public void resumeProducers() throws IOException {
+        sendPost(producerWorkers, "/resume-producers", new byte[0]);
+    }
+
 }

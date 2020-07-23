@@ -343,6 +343,10 @@ public class WorkloadGenerator implements AutoCloseable {
 
         log.info("--- Start draining backlog ---");
 
+        if (workload.consumerOnly) {
+            log.info("Consume only test. Pausing producers while backlog is drained");
+            worker.pauseProducers();
+        }
         worker.resumeConsumers();
 
         final long minBacklog = 1000;

@@ -32,6 +32,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 
 import org.HdrHistogram.Recorder;
@@ -104,6 +106,8 @@ public class LocalWorker implements Worker, ConsumerCallback {
     private boolean testCompleted = false;
 
     private boolean consumersArePaused = false;
+
+    private boolean producersArePaused = false;
 
     public LocalWorker() {
         this(NullStatsLogger.INSTANCE);
@@ -226,6 +230,14 @@ public class LocalWorker implements Worker, ConsumerCallback {
         executor.submit(() -> {
             try {
                 while (!testCompleted) {
+                    while (producersArePaused) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
                     producers.forEach(producer -> {
                         rateLimiter.acquire();
                         final long sendTime = System.nanoTime();
@@ -344,6 +356,7 @@ public class LocalWorker implements Worker, ConsumerCallback {
     public void stopAll() throws IOException {
         testCompleted = true;
         consumersArePaused = false;
+        producersArePaused = false;
 
         publishLatencyRecorder.reset();
         cumulativePublishLatencyRecorder.reset();
@@ -394,4 +407,16 @@ public class LocalWorker implements Worker, ConsumerCallback {
     }
 
     private static final Logger log = LoggerFactory.getLogger(LocalWorker.class);
+
+    @Override
+    public void pauseProducers() throws IOException {
+        producersArePaused = true;
+        log.info("Pausing producers");
+    }
+
+    @Override
+    public void resumeProducers() throws IOException {
+        producersArePaused = false;
+        log.info("Resuming producers");
+    }
 }

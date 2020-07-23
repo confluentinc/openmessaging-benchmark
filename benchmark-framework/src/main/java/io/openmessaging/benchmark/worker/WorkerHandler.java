@@ -56,6 +56,8 @@ public class WorkerHandler {
         app.post("/create-consumers", this::handleCreateConsumers);
         app.post("/pause-consumers", this::handlePauseConsumers);
         app.post("/resume-consumers", this::handleResumeConsumers);
+        app.post("/pause-producers", this::handlePauseProducers);
+        app.post("/resume-producers", this::handleResumeProducers);
         app.post("/start-load", this::handleStartLoad);
         app.post("/adjust-publish-rate", this::handleAdjustPublishRate);
         app.post("/stop-all", this::handleStopAll);
@@ -111,6 +113,14 @@ public class WorkerHandler {
 
     private void handleResumeConsumers(Context ctx) throws Exception {
         localWorker.resumeConsumers();
+    }
+
+    private void handlePauseProducers(Context ctx) throws Exception {
+        localWorker.pauseProducers();
+    }
+
+    private void handleResumeProducers(Context ctx) throws Exception {
+        localWorker.resumeProducers();
     }
 
     private void handleStartLoad(Context ctx) throws Exception {
