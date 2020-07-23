@@ -26,6 +26,8 @@ brokers:
   - {{ hostvars[worker].private_ip }}
 {% endfor %}
 messagePersistence: true
-queueType: CLASSIC # CLASSIC | QUORUM
+queueType: QUORUM # CLASSIC | QUORUM
 exchangeType: DIRECT # DIRECT | TOPIC | FANOUT | HEADERS
-topicPrefix: benchrabbit
+topicPrefix: summit
+exclusive: false # Turn off for HA/durability to take effect
+singleNode: false # Turn on to use a single node for all queues/exchanges for all producers/consumers

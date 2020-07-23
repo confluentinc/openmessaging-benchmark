@@ -102,6 +102,16 @@ class ConnectionManager {
         return connection;
     }
 
+    public Connection connect(int brokerIdx) throws IOException, TimeoutException, IllegalArgumentException {
+        if (brokerIdx > connectionFactory.size()) {
+            throw new IllegalArgumentException("Broker index > total no of brokers");
+        }
+        Connection connection = connectionFactory.get(brokerIdx).newConnection();
+        connections.add(connection);
+
+        return connection;
+    }
+
     public void close() {
         connections.forEach(connection -> {
             try {
@@ -144,6 +154,17 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<Void> createTopic(String topic, int partitions) {
+        CompletableFuture<BenchmarkProducer> future = new CompletableFuture<>();
+
+        try {
+            Connection connection = config.singleNode ? connectionManager.connect(0) : connectionManager.connectAny();
+            Channel channel = connection.createChannel();
+            channel.exchangeDeclare(topic, config.exchangeType, config.messagePersistence);
+        } catch (IOException | TimeoutException | IllegalArgumentException e) {
+            e.printStackTrace();
+            future.completeExceptionally(e);
+        }
+
         if (!topicRoutingKeyGenerator.containsKey(topic)) {
             topicRoutingKeyGenerator.put(topic, new RoutingKeyGenerator(partitions, routingKeyLength));
         }
@@ -163,12 +184,12 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
         CompletableFuture<BenchmarkProducer> future = new CompletableFuture<>();
 
         try {
-            Connection connection = connectionManager.connectAny();
+            Connection connection = config.singleNode ? connectionManager.connect(0) : connectionManager.connectAny();
             Channel channel = connection.createChannel();
             channel.confirmSelect();
             future = CompletableFuture.completedFuture(new RabbitMqBenchmarkProducer(channel, topic,
-                    config.exchangeType, config.messagePersistence, topicRoutingKeyGenerator.get(topic)));
-        } catch (IOException | TimeoutException e) {
+                    config.messagePersistence, topicRoutingKeyGenerator.get(topic)));
+        } catch (IOException | TimeoutException | IllegalArgumentException e) {
             e.printStackTrace();
             future.completeExceptionally(e);
         }
@@ -177,33 +198,34 @@ public class RabbitMqBenchmarkDriver implements BenchmarkDriver {
 
     @Override
     public CompletableFuture<BenchmarkConsumer> createConsumer(String topic, String subscriptionName,
-            ConsumerCallback consumerCallback) {
+            Optional<Integer> partition, ConsumerCallback consumerCallback) {
 
         CompletableFuture<BenchmarkConsumer> future = new CompletableFuture<>();
         ForkJoinPool.commonPool().execute(() -> {
             try {
                 String queueName = topic + "-" + subscriptionName;
-                Connection connection = connectionManager.connectAny();
+                Connection connection = config.singleNode ? connectionManager.connect(0)
+                        : connectionManager.connectAny();
                 Channel channel = connection.createChannel();
-
-                // Consume everything (all "partitions")
                 channel.exchangeDeclare(topic, config.exchangeType, config.messagePersistence);
 
                 Map<String, Object> args = new HashMap<>();
                 args.put("x-queue-type", config.queueType.toString().toLowerCase());
-                channel.queueDeclare(queueName, config.messagePersistence, false, false, args);
-                log.info("Exchange type - {}", config.exchangeType.toString());
-                // Bind to all, if topic-based exchange
+                String routingKey = "";
                 if (config.exchangeType == BuiltinExchangeType.TOPIC) {
-                    channel.queueBind(queueName, topic, "#");
+                    // Bind to all, if topic-based exchange
+                    routingKey = "#";
                 } else if (config.exchangeType == BuiltinExchangeType.DIRECT) {
-                    // When no. of partitions == 1, we use a direct exchange - Binds directly to the
-                    // exchange
-                    channel.queueBind(queueName, topic, topicRoutingKeyGenerator.get(topic).next());
-                    log.info("Bound queue -> {} to exchange -> {}", queueName, topic);
+                    if (partition.isPresent()) {
+                        routingKey = partition.get().toString();
+                    }
+                    queueName += ("-part-" + routingKey);
                 }
+                channel.queueDeclare(queueName, config.messagePersistence, config.exclusive, false, args);
+                channel.queueBind(queueName, topic, routingKey);
+                log.info("Bound queue -> {} to exchange -> {}", queueName, topic);
                 future.complete(new RabbitMqBenchmarkConsumer(channel, queueName, consumerCallback));
-            } catch (IOException | TimeoutException e) {
+            } catch (IOException | TimeoutException | IllegalArgumentException e) {
                 future.completeExceptionally(e);
             }
         });

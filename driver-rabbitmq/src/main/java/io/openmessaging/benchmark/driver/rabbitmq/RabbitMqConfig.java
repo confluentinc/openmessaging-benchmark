@@ -31,4 +31,6 @@ public class RabbitMqConfig {
     public int routingKeyLength = 7;
     public String topicPrefix = "test-topic";
     public BuiltinExchangeType exchangeType = BuiltinExchangeType.DIRECT;
+    public boolean exclusive = false;
+    public boolean singleNode = false;
 }

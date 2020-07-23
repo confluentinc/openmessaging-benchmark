@@ -42,13 +42,11 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> futureConcurrentHashMap = new ConcurrentHashMap<>();
     private boolean messagePersistence = false;
     private RoutingKeyGenerator routingKeyGenerator;
-    private BuiltinExchangeType exchangeType;
 
-    public RabbitMqBenchmarkProducer(Channel channel, String exchange, BuiltinExchangeType exchangeType,
-            boolean messagePersistence, RoutingKeyGenerator routingKeyGenerator) {
+    public RabbitMqBenchmarkProducer(Channel channel, String exchange, boolean messagePersistence,
+            RoutingKeyGenerator routingKeyGenerator) throws IOException {
         this.channel = channel;
         this.exchange = exchange;
-        this.exchangeType = exchangeType;
         this.messagePersistence = messagePersistence;
         this.routingKeyGenerator = routingKeyGenerator;
         this.listener = new ConfirmListener() {
@@ -129,9 +127,7 @@ public class RabbitMqBenchmarkProducer implements BenchmarkProducer {
         ackSet.add(msgId);
         futureConcurrentHashMap.putIfAbsent(msgId, future);
         try {
-            String routingKey = key.orElse(routingKeyGenerator.next());
-            channel.exchangeDeclare(exchange, exchangeType, messagePersistence);
-            channel.basicPublish(exchange, routingKey, props, payload);
+            channel.basicPublish(exchange, routingKeyGenerator.next(), props, payload);
         } catch (Exception e) {
             future.completeExceptionally(e);
         }

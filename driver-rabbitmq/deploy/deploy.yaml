@@ -18,10 +18,48 @@
 #
 
 ---
+# Mount SSDs
+- name: Format and mount disks for Brokers
+  hosts: rabbitmq
+  connection: ssh
+  become: true
+  tasks:
+    - name: Format disks
+      filesystem:
+        fstype: xfs
+        dev: "{{ item }}"
+      with_items:
+        - "/dev/nvme1n1"
+        - "/dev/nvme2n1"
+    - name: Mount disks
+      mount:
+        path: "{{ item.path }}"
+        src: "{{ item.src }}"
+        fstype: xfs
+        opts: defaults,noatime,nodiscard
+        state: mounted
+      with_items:
+        - { path: "/mnt/data-1", src: "/dev/nvme1n1" }
+        - { path: "/mnt/data-2", src: "/dev/nvme2n1" }
+    - name: Fix permissions
+      file:
+        path: "/mnt/data-1"
+        state: touch
+        mode: "0777"
+
 # Install RabbitMQ Server
 - name: Install RabbitMQ Cluster
   hosts: rabbitmq
   connection: ssh
+  handlers:
+    - name: restart rabbitmq-server
+      service: name=rabbitmq-server state=restarted
+
+    - name: start rabbitmq-server
+      service: name=rabbitmq-server state=started
+
+    - name: stop rabbitmq-server
+      service: name=rabbitmq-server state=stopped
   tasks:
     - set_fact:
         erlangVersion: 23.0.2
@@ -42,6 +80,56 @@
       yum:
         name: https://dl.bintray.com/rabbitmq/all/rabbitmq-server/{{ rabbitMqVersion }}/rabbitmq-server-{{ rabbitMqVersion }}-1.el7.noarch.rpm
         state: present
+    - name: Install RabbitMQ service
+      template:
+        src: "templates/rabbitmq-server.service"
+        dest: "/etc/systemd/system/rabbitmq-server.service"
+    - systemd:
+        state: started
+        daemon_reload: yes
+        name: "rabbitmq-server"
+    - systemd:
+        state: restarted
+        daemon_reload: yes
+        name: "rabbitmq-server"
+
+    - name: backup old erlang cookie
+      shell: cp -a /var/lib/rabbitmq/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie.old
+      changed_when: false
+    - name: updating rabbitmq erlang cookie
+      template:
+        src: etc/erlang.cookie.j2
+        dest: /var/lib/rabbitmq/.erlang.cookie
+        owner: rabbitmq
+        group: rabbitmq
+        mode: 0400
+      notify: stop rabbitmq-server
+    - name: remove old erlang cookie
+      file:
+        path: /var/lib/rabbitmq/.erlang.cookie.old
+        state: absent
+      changed_when: false
+    - name: rabbitmq default file
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: 0644
+      with_items:
+        - {
+            src: etc/default/rabbitmq-server.j2,
+            dest: /etc/default/rabbitmq-server,
+          }
+        - {
+            src: etc/rabbitmq/rabbitmq.config.j2,
+            dest: /etc/rabbitmq/rabbitmq.config,
+          }
+        - {
+            src: etc/rabbitmq/rabbitmq-env.conf.j2,
+            dest: /etc/rabbitmq/rabbitmq-env.conf,
+          }
+      notify: restart rabbitmq-server
     - systemd:
         state: started
         daemon_reload: yes
@@ -65,47 +153,6 @@
     - name: stop rabbitmq-server
       service: name=rabbitmq-server state=stopped
   tasks:
-    - name: backup old erlang cookie
-      shell: cp -a /var/lib/rabbitmq/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie.old
-      changed_when: false
-
-    - name: updating rabbitmq erlang cookie
-      template:
-        src: etc/erlang.cookie.j2
-        dest: /var/lib/rabbitmq/.erlang.cookie
-        owner: rabbitmq
-        group: rabbitmq
-        mode: 0400
-      notify: stop rabbitmq-server
-
-    - name: remove old erlang cookie
-      file:
-        path: /var/lib/rabbitmq/.erlang.cookie.old
-        state: absent
-      changed_when: false
-
-    - name: rabbitmq default file
-      template:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        owner: root
-        group: root
-        mode: 0644
-      with_items:
-        - {
-            src: etc/default/rabbitmq-server.j2,
-            dest: /etc/default/rabbitmq-server,
-          }
-        - {
-            src: etc/rabbitmq/rabbitmq.config.j2,
-            dest: /etc/rabbitmq/rabbitmq.config,
-          }
-        - {
-            src: etc/rabbitmq/rabbitmq-env.conf.j2,
-            dest: /etc/rabbitmq/rabbitmq-env.conf,
-          }
-      notify: restart rabbitmq-server
-
     - name: Enable the plugins installed
       rabbitmq_plugin:
         names: "{{ item }}"
@@ -113,13 +160,7 @@
         state: enabled
         new_only: yes
       with_items: "{{ rabbitmq_plugins }}"
-      notify: restart rabbitmq-server
-
-    - name: rabbitmq service started and enabled
-      service:
-        name: rabbitmq-server
-        enabled: yes
-        state: restarted
+      notify: start rabbitmq-server
 
     - name: make sure rabbitmq app is up
       command: rabbitmqctl start_app
