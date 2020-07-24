@@ -27,6 +27,6 @@ subscriptionsPerTopic: 1
 consumerPerSubscription: 4
 producersPerTopic: 4
 producerRate: 1000000
-consumerBacklogSizeGB: 500
+consumerBacklogSizeGB: 1500
 testDurationMinutes: 1 # Setting this lower than the time possibly it takes to drain the backlog #HACK
 consumerOnly: true
