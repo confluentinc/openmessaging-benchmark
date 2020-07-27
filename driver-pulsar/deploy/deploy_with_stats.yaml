@@ -21,14 +21,26 @@
   hosts: pulsar
   connection: ssh
   become: true
+  vars:
+    raid_dev: /dev/md0
+    raid_level: 0
+    raid_name: RAID
+    raid_mount: /mnt/pulsar
   tasks:
+    - name: Install mdadm
+      shell: sudo yum -y install mdadm
+
+    - name: Create a RAID device
+      shell: sudo mdadm --create --verbose "{{ raid_dev }}" --level="{{ raid_level }}" --name="{{ raid_name }}" --raid-devices=2 /dev/nvme1n1 /dev/nvme2n1
+#      when: sh_ls_raid_dev.stdout_lines.count("{{ raid_dev }}") == 0
+
     - name: Format disks
       filesystem:
-         fstype: xfs
-         dev: '{{ item }}'
+        fstype: xfs
+        dev: '{{ item }}'
       with_items:
-        - '/dev/nvme1n1'
-        - '/dev/nvme2n1'
+        - "{{ raid_dev }}"
+
     - name: Mount disks
       mount:
         path: "{{ item.path }}"
@@ -37,8 +49,7 @@
         opts: defaults,noatime,nodiscard
         state: mounted
       with_items:
-        - { path: "/mnt/journal", src: "/dev/nvme1n1" }
-        - { path: "/mnt/storage", src: "/dev/nvme2n1" }
+        - { path: "{{ raid_mount }}", src: "{{ raid_dev }}" }
 
 - name: Pulsar installation
   hosts: all
