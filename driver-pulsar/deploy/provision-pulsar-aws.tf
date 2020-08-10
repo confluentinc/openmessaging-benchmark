@@ -146,6 +146,19 @@ resource "aws_instance" "pulsar" {
   }
 }
 
+resource "aws_instance" "bookkeeper" {
+  ami                    = "${var.ami}"
+  instance_type          = "${var.instance_types["bookkeeper"]}"
+  key_name               = "${aws_key_pair.auth.id}"
+  subnet_id              = "${aws_subnet.benchmark_subnet.id}"
+  vpc_security_group_ids = ["${aws_security_group.benchmark_security_group.id}"]
+  count                  = "${var.num_instances["bookkeeper"]}"
+
+  tags = {
+    Name = "bookkeeper-${count.index}"
+  }
+}
+
 resource "aws_instance" "client" {
   ami                    = "${var.ami}"
   instance_type          = "${var.instance_types["client"]}"
@@ -176,44 +189,34 @@ output "client_ssh_host" {
   value = "${aws_instance.client.0.public_ip}"
 }
 
-output "client1" {
-  value = "${aws_instance.client.1.public_ip}"
+output "clients" {
+  value = {
+    for instance in aws_instance.client:
+    instance.public_ip => instance.private_ip
+  }
 }
 
-output "client2" {
-  value = "${aws_instance.client.2.public_ip}"
+output "brokers" {
+  value = {
+      for instance in aws_instance.pulsar:
+      instance.public_ip => instance.private_ip
+    }
 }
 
-output "client3" {
-  value = "${aws_instance.client.3.public_ip}"
+output "bookies" {
+  value = {
+      for instance in aws_instance.bookkeeper:
+      instance.public_ip => instance.private_ip
+    }
+}
+
+output "zookeeper" {
+  value = {
+      for instance in aws_instance.zookeeper:
+      instance.public_ip => instance.private_ip
+    }
 }
 
 output "prometheus_host" {
   value = "${aws_instance.prometheus.0.public_ip}"
 }
-
-output "server0" {
-  value = "${aws_instance.pulsar.0.public_ip}"
-}
-
-output "server1" {
-  value = "${aws_instance.pulsar.1.public_ip}"
-}
-
-output "server2" {
-  value = "${aws_instance.pulsar.2.public_ip}"
-}
-
-output "zk0" {
-  value = "${aws_instance.zookeeper.0.public_ip}"
-}
-
-output "zk1" {
-  value = "${aws_instance.zookeeper.1.public_ip}"
-}
-
-output "zk2" {
-  value = "${aws_instance.zookeeper.2.public_ip}"
-}
-
-
