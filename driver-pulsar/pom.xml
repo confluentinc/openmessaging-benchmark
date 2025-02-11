@@ -30,7 +30,7 @@
 
 	<artifactId>driver-pulsar</artifactId>
 	<properties>
-		<pulsar.version>2.6.0</pulsar.version>
+		<pulsar.version>2.11.4</pulsar.version>
 	</properties>
 
 	<dependencies>
